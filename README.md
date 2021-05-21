@@ -7,6 +7,7 @@ go run model2.go
 
 Model program flow
 
+<<<<<<< HEAD
 ```go
 done := make(chan interface{})
 defer close(done)
@@ -32,3 +33,6 @@ fmt.Printf("Search took: %v", time.Since(start))
 ```
 
 ![model.png](model.png)
+=======
+![model.png](model.png)
+>>>>>>> 2a19d6e59502a9551214c81ca18d673d1144d344
