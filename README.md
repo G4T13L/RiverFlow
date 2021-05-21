@@ -7,4 +7,4 @@ go run model2.go
 
 Model program flow
 
-![model2.png](model2.png)
+![model.png](model.png)
