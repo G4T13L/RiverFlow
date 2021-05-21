@@ -7,4 +7,28 @@ go run model2.go
 
 Model program flow
 
-![model2.png](model2.png)
+```go
+done := make(chan interface{})
+defer close(done)
+
+start := time.Now()
+// create a channel that can receive all credential
+readStream := read2files(done, "users.txt", "passwords.txt")
+
+//use maximum of green threads
+numWorkers := runtime.NumCPU()
+
+//fan out
+workers := make([]<-chan string, numWorkers)
+for i := 0; i < numWorkers; i++ {
+    workers[i] = attack(done, readStream, strconv.Itoa(i+1), protocolX)
+}
+
+//fanIn
+for resp := range fanIn(done, workers...) {
+    fmt.Println(resp)
+}
+fmt.Printf("Search took: %v", time.Since(start))
+```
+
+![model.png](model.png)
