@@ -169,5 +169,5 @@ func main() {
 	for resp := range fanIn(done, workers...) {
 		fmt.Println(resp)
 	}
-	fmt.Printf("Search took: %v", time.Since(start))
+	fmt.Printf("Atack took: %v", time.Since(start))
 }
