@@ -10,18 +10,18 @@ import (
 	"time"
 )
 
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
+// func check(e error) {
+// 	if e != nil {
+// 		panic(e)
+// 	}
+// }
 
-// Credential Structures
-type login struct {
-	user string
-	pass string
-	pos  string
-}
+// // Credential Structures
+// type login struct {
+// 	user string
+// 	pass string
+// 	pos  string
+// }
 
 // Dictionary reader, the answer flow to the return channel
 func read2files(
@@ -118,8 +118,8 @@ func protocolX( // ssh, ftp, smtp, http, smb
 	credential login,
 	name string,
 ) string {
-	time.Sleep(time.Millisecond * 10) // Replace with a conection for the protocolX
-	return fmt.Sprintf("Goroutine %s:\t%s\t%s\t%s", name, credential.user, credential.pass, credential.pos)
+	time.Sleep(time.Millisecond * 50) // Replace with a conection for the protocolX
+	return fmt.Sprintf("Goroutine %s:\t%s\t%s\t%s", name, credential.pos, credential.user, credential.pass)
 }
 
 // Attack job to call protocol X and send the response result
@@ -148,7 +148,7 @@ func attack(
 	return responseStream
 }
 
-func main() {
+func Use_model2() time.Duration {
 	done := make(chan interface{})
 	defer close(done)
 
@@ -167,7 +167,8 @@ func main() {
 
 	//fanIn
 	for resp := range fanIn(done, workers...) {
-		fmt.Println(resp)
+		fmt.Sprintln(resp)
 	}
-	fmt.Printf("Atack took: %v", time.Since(start))
+	return time.Since(start)
+	// fmt.Printf("Atack took: %v", time.Since(start))
 }

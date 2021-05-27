@@ -3,14 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/fatih/color"
 )
 
 func check(e error) {
@@ -24,11 +21,6 @@ type login struct {
 	pass string
 	pos  string
 }
-
-var yellow = color.New(color.FgYellow).SprintFunc()
-var green = color.New(color.FgGreen).SprintFunc()
-var red = color.New(color.FgRed).SprintFunc()
-var magenta = color.New(color.FgHiMagenta).SprintFunc()
 
 var wg sync.WaitGroup
 
@@ -74,10 +66,10 @@ func Read2Files(userFile, passFile string, loginChan chan login) {
 
 //workSSH goroutine for one attack of SSH
 func workSSH(job login) {
-	fmt.Println(yellow("[attemp] ", job.pos, " ", job.user, ":", job.pass))
+	// fmt.Println(yellow("[attemp] ", job.pos, " ", job.user, ":", job.pass))
 	defer wg.Done()
-	time.Sleep(time.Millisecond * 10)
-	fmt.Println(green("[+][+] Session Connect ", job.pos, " ", job.user, ":", job.pass))
+	time.Sleep(time.Millisecond * 50)
+	fmt.Sprintln("[+][+] Session Connect ", job.pos, " ", job.user, ":", job.pass)
 }
 
 //SSHattackStart SSH attack with 2 files to iterate
@@ -85,8 +77,6 @@ func SSHattackStart(userFile, passFile string, nWorkers int) {
 	if nWorkers == 0 {
 		nWorkers = 9
 	}
-	log.Println("[0] Starting jobs")
-	log.Println(userFile, passFile, nWorkers)
 
 	outchan := make(chan login, nWorkers)
 	go Read2Files(userFile, passFile, outchan)
@@ -99,7 +89,7 @@ func SSHattackStart(userFile, passFile string, nWorkers int) {
 		case job, ok := <-outchan:
 			if !ok {
 				wg.Wait()
-				log.Println(yellow("[info] jobs finisished"))
+				fmt.Sprintln("[info] jobs finisished")
 				return
 			}
 			wg.Add(1)
@@ -112,15 +102,9 @@ func SSHattackStart(userFile, passFile string, nWorkers int) {
 	}
 }
 
-func main() {
-	done := make(chan interface{})
-	defer close(done)
-
+func Use_model1() time.Duration {
 	numWorkers := runtime.NumCPU()
-
 	start := time.Now()
-
 	SSHattackStart("users.txt", "passwords.txt", numWorkers)
-
-	fmt.Printf("Atack took: %v", time.Since(start))
+	return time.Since(start)
 }
