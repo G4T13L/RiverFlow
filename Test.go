@@ -5,12 +5,9 @@ import (
 	"runtime"
 )
 
-// PrintMemUsage outputs the current, total and OS memory being used. As well as the number
-// of garage collection cycles completed.
 func memConsumed() uint64 {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
 
 	fmt.Printf("Alloc = %v KiB", bToKb(m.Alloc))
 	fmt.Printf("\tTotalAlloc = %v KiB", bToKb(m.TotalAlloc))
