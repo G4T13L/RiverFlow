@@ -2,62 +2,55 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
+	"time"
 )
 
-func memConsumed() uint64 {
+func memConsumed() [3]uint64 {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-
-	fmt.Printf("Alloc = %v KiB", bToKb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v KiB", bToKb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v KiB", bToKb(m.Sys))
+	malloc, totaloc, sysm := bToKb(m.Alloc), bToKb(m.TotalAlloc), bToKb(m.Sys)
+	fmt.Printf("Alloc = %v KiB", malloc)
+	fmt.Printf("\tTotalAlloc = %v KiB", totaloc)
+	fmt.Printf("\tSys = %v KiB", sysm)
 	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-	return bToKb(m.Sys)
+	return [3]uint64{malloc, totaloc, sysm}
 }
 
 func bToKb(b uint64) uint64 {
 	return b / 1024
 }
 
-func test1() {
+func test(model int) {
 	fmt.Println("Started memory")
 	fmt.Println("---------------------------------")
 	memConsumed()
 
 	fmt.Println("---------------------------------")
-	fmt.Println("\t\tModel 1")
+	fmt.Println("\t\tModel " + strconv.Itoa(model))
 	fmt.Println("---------------------------------")
 	fmt.Println("Memory before process")
 	runtime.GC()
 	before1 := memConsumed()
-	time1 := Use_model1()
+	var time1 time.Duration
+	if model == 1 {
+		time1 = Use_model1()
+	} else {
+		time1 = Use_model2()
+	}
 	fmt.Println("Memory After process")
 	after1 := memConsumed()
 
-	fmt.Printf("%fkb\n", float64(after1-before1)/1000)
-	fmt.Println("Time took ", time1)
-}
-
-func test2() {
-	fmt.Println("Started memory")
 	fmt.Println("---------------------------------")
-	memConsumed()
-
+	fmt.Printf("Memory difference\nAlloc = %v KiB\tTotalAlloc = %v KiB\tSys = %v KiB\n", after1[0]-before1[0], after1[1]-before1[1], after1[2]-before1[2])
 	fmt.Println("---------------------------------")
-	fmt.Println("\t\tModel 2")
-	fmt.Println("---------------------------------")
-	fmt.Println("Memory before process")
-	runtime.GC()
-	before2 := memConsumed()
-	time2 := Use_model2()
-	fmt.Println("Memory After process")
-	after2 := memConsumed()
-
-	fmt.Printf("%fkb\n", float64(after2-before2)/1000)
-	fmt.Println("Time took ", time2)
+	fmt.Println("[!] Time took ", time1)
 }
 
 func main() {
-	test2()
+	model, _ := strconv.Atoi(os.Args[1])
+	test(model)
+
 }

