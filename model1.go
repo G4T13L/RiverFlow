@@ -88,7 +88,7 @@ func workSSH(job login) {
 		}
 	}()
 
-	t := net.JoinHostPort("192.168.1.46", "22")
+	t := net.JoinHostPort("192.168.1.42", "22")
 
 	_, err := ssh.Dial("tcp", t, config)
 
