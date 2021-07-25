@@ -35,10 +35,14 @@ func test(model int) {
 	runtime.GC()
 	before1 := memConsumed()
 	var time1 time.Duration
-	if model == 1 {
+
+	switch model {
+	case 1:
 		time1 = Use_model1()
-	} else {
+	case 2:
 		time1 = Use_model2()
+	case 3:
+		time1 = Use_model3()
 	}
 	fmt.Println("Memory After process")
 	after1 := memConsumed()
@@ -50,7 +54,13 @@ func test(model int) {
 }
 
 func main() {
-	model, _ := strconv.Atoi(os.Args[1])
-	test(model)
+	model := os.Args[1]
+	if model == "all" {
+		test(1)
+		test(2)
+		test(3)
+	}
+	modelNumber, _ := strconv.Atoi(model)
+	test(modelNumber)
 
 }

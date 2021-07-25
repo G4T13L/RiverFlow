@@ -13,6 +13,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const (
+	IPADDRESS = "192.168.1.42"
+)
+
 func check(e error) {
 	if e != nil {
 		panic(e)
@@ -88,7 +92,7 @@ func workSSH(job login) {
 		}
 	}()
 
-	t := net.JoinHostPort("192.168.1.42", "22")
+	t := net.JoinHostPort(IPADDRESS, "22")
 
 	_, err := ssh.Dial("tcp", t, config)
 
@@ -132,6 +136,6 @@ func SSHattackStart(userFile, passFile string, nWorkers int) {
 func Use_model1() time.Duration {
 	numWorkers := runtime.NumCPU()
 	start := time.Now()
-	SSHattackStart("users.txt", "passwords.txt", numWorkers)
+	SSHattackStart("../dictionaries/users.txt", "../dictionaries/passwords.txt", numWorkers)
 	return time.Since(start)
 }

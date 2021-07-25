@@ -7,21 +7,18 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 )
 
-const TARGET = "192.168.1.42"
+// var wg sync.WaitGroup
 
-var wg sync.WaitGroup
-
-func check(e error) {
-	if e != nil {
-		fmt.Println("[error] ", e)
-	}
-}
+// func check(e error) {
+// 	if e != nil {
+// 		fmt.Println("[error] ", e)
+// 	}
+// }
 
 type credential struct {
 	user string
@@ -109,7 +106,7 @@ func (c *credential) SSHtest() (string, error) {
 		}
 	}()
 
-	t := net.JoinHostPort(TARGET, "22")
+	t := net.JoinHostPort(IPADDRESS, "22")
 
 	_, err := ssh.Dial("tcp", t, config)
 
@@ -161,7 +158,7 @@ func startAttack(nWorkers int) {
 		go worker(reqStream, fmt.Sprint(i))
 	}
 
-	credList := readFiles("../users.txt", "../passwords.txt")
+	credList := readFiles("../dictionaries/users.txt", "../dictionaries/passwords.txt")
 
 	resultStream := make(chan *result)
 	numCredentials := 0
@@ -188,12 +185,13 @@ func startAttack(nWorkers int) {
 
 }
 
-func main() {
+func Use_model3() time.Duration {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	streamWidth = runtime.NumCPU()
 
 	start := time.Now()
-	startAttack(8)
 
-	fmt.Printf("Atack took: %v\n", time.Since(start))
-
+	startAttack(streamWidth)
+	return time.Since(start)
+	// fmt.Printf("Atack took: %v", time.Since(start))
 }

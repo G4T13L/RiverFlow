@@ -34,11 +34,11 @@ func generate(ctx context.Context, cancel func()) <-chan int {
 }
 
 func worker(ctx context.Context, in <-chan int, timeLimit time.Duration, name int) {
+	ctx, cancel := context.WithTimeout(ctx, timeLimit)
 	for job := range in {
 		retChan := make(chan int)
 		fmt.Println("[worker ", name, "] want to send ", job)
 		go attack(job, retChan)
-		ctx, _ := context.WithTimeout(ctx, timeLimit)
 		select {
 		case <-ctx.Done():
 			fmt.Println("[worker ", name, "] Time limit for ", job)
@@ -48,6 +48,7 @@ func worker(ctx context.Context, in <-chan int, timeLimit time.Duration, name in
 		}
 
 	}
+	cancel()
 }
 
 func main() {

@@ -148,7 +148,7 @@ func SshConnection(done <-chan interface{},
 		}
 	}()
 
-	t := net.JoinHostPort("192.168.1.42", "22")
+	t := net.JoinHostPort(IPADDRESS, "22")
 
 	_, err := ssh.Dial("tcp", t, config)
 
@@ -193,7 +193,7 @@ func Use_model2() time.Duration {
 
 	start := time.Now()
 	// create a channel that can receive all credential
-	readStream := read2files(done, "users.txt", "passwords.txt")
+	readStream := read2files(done, "../dictionaries/users.txt", "../dictionaries/passwords.txt")
 
 	//use maximum of green threads
 	numWorkers := runtime.NumCPU()
